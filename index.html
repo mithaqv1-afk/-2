@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<title>مكتبتي</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;color:#f3efe6;font-family:"Noto Naskh Arabic","Droid Arabic Naskh",Tahoma,Arial,sans-serif}
+body{overflow:hidden}
+body.rd{overflow:auto;scrollbar-width:none}
+body.rd::-webkit-scrollbar{display:none}
+button{font:inherit;color:inherit;cursor:pointer}
+
+#home{height:100vh;padding:5vh 6vw 3vh;display:flex;flex-direction:column;background:#0b1118}
+#home h1{font-size:5vh;margin-bottom:1vh}
+#home p{font-size:2.6vh;color:#8d98a5;margin-bottom:3vh}
+#grid{flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(2,1fr);gap:3vh 2.2vw}
+.tile{position:relative;background:#e9e4d8;color:#15191e;border-radius:1.2vh;border:.7vh solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .12s}
+.tile b{font-size:9vh;line-height:1}
+.tile span{font-size:3vh;margin-top:1vh;padding:0 .6vw;text-align:center;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile small{font-size:2.3vh;color:#4d5862;margin-top:1.2vh;min-height:3vh}
+.tile.ok::after{content:"✓";position:absolute;top:1vh;left:1vw;font-size:3vh;color:#1f9d8c}
+.tile.sel,.tile:focus{transform:scale(1.07);border-color:#3fc1b0;box-shadow:0 0 0 .6vh #0b1118,0 0 4vh rgba(63,193,176,.55);outline:none}
+#dl,#kt{margin-top:2vh;background:#1b222b;border:.5vh solid #333;border-radius:1vh;font-size:3vh;padding:1.6vh 2vw}
+#dl.sel,#dl:focus,#kt.sel,#kt:focus{border-color:#3fc1b0;outline:none}
+
+#kv{position:fixed;top:0;right:0;bottom:0;left:0;background:#0b1118;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2vh;z-index:9}
+#kv h2{font-size:4vh}#kbig{font-size:18vh;color:#3fc1b0;line-height:1}#klog{font-size:3vh;direction:ltr;text-align:left;color:#cfd6dd;min-height:28vh}
+#reader{display:none;direction:ltr}
+#bar,#info,#ov,#msg,#goto{direction:rtl}
+#cv{display:none;width:100%;height:auto;background:#fff;margin:0 auto}
+#info{position:fixed;top:2vh;right:2vw;background:rgba(0,0,0,.8);padding:1.2vh 2vw;border-radius:1vh;font-size:3.2vh;opacity:0;transition:opacity .3s;pointer-events:none}
+#msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:4vh;text-align:center;max-width:80vw;line-height:1.7;display:none}
+#goto{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#15191e;border:.6vh solid #3fc1b0;border-radius:2vh;padding:3vh 4vw;font-size:6vh;display:none}
+#bar{position:fixed;bottom:2vh;left:50%;transform:translateX(-50%);display:flex;gap:1vw;opacity:0;pointer-events:none;transition:opacity .3s}
+#bar.on{opacity:1;pointer-events:auto}
+#zl{align-self:center;font-size:2.4vh;min-width:9vw;text-align:center;color:#cfd6dd;background:rgba(21,25,30,.95);padding:1.1vh .6vw;border-radius:1vh}
+#bar button{background:rgba(21,25,30,.95);border:.4vh solid #555;border-radius:1vh;font-size:2.6vh;padding:1.1vh 1.2vw;white-space:nowrap}
+#bar button.k{transform:scale(1.1);box-shadow:0 0 2vh rgba(63,193,176,.6)}
+#bar button.k,#bar button:focus{border-color:#3fc1b0;outline:none;background:#26303b}
+#ov{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(5,8,12,.97);display:none;flex-direction:column;padding:4vh 5vw}
+#ov h2{font-size:4vh;margin-bottom:3vh}
+#ovgrid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(10,1fr);gap:1.6vh 1vw;align-content:start;scrollbar-width:none}
+#ovgrid::-webkit-scrollbar{display:none}
+#ovgrid div{background:#1b222b;border:.5vh solid transparent;border-radius:1vh;text-align:center;font-size:3.4vh;padding:1.6vh 0;cursor:pointer}
+#ovgrid div.sel{background:#e9e4d8;color:#15191e;border-color:#3fc1b0;transform:scale(1.12)}
+</style>
+</head>
+<body>
+
+<div id="home">
+  <h1>مكتبتي</h1>
+  <p>اختر الملف بالأسهم ثم OK (أو بمؤشر الريموت)</p>
+  <div id="grid"></div>
+  <button id="dl">⬇ تنزيل كل الملفات للعمل بدون إنترنت</button>
+  <button id="kt">⌨ اختبار أزرار الريموت</button>
+</div>
+
+<div id="kv"><h2>اضغط أي زر بالريموت</h2><div id="kbig">—</div><pre id="klog"></pre><p>للخروج اضغط Back</p></div>
+
+<div id="reader">
+  <canvas id="cv" width="10" height="10"></canvas>
+  <div id="info"></div>
+  <div id="msg"></div>
+  <div id="goto"></div>
+  <div id="bar">
+    <button data-a="prev">▶ السابقة</button>
+    <button data-a="up">▲</button>
+    <button data-a="down">▼</button>
+    <button data-a="zout">−</button><span id="zl"></span><button data-a="zin">+</button>
+    <button data-a="list">☰ الصفحات</button>
+    <button data-a="home">✕ القائمة</button>
+    <button data-a="next">التالية ◀</button>
+  </div>
+  <div id="ov"><h2>اختر الصفحة</h2><div id="ovgrid"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+<script>
+var BOOKS = 10, RTL_BOOKS = true, JUMP = 10;
+function pdfPath(n){ return n + '.pdf'; }
+var LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+
+var $ = function(id){ return document.getElementById(id); };
+var mode = 'home', sel = 0, pdf = null, lt = null, book = 0, page = 1, total = 0;
+var token = 0, loadId = 0, task = null, ptask = null, renderT = 0, cache = {}, cacheKeys = [], klog = [], ovOpen = false, ovSel = 1, buf = '', dlBusy = false;
+var bufT, infoT, barT, names = {}, ZL = ['fit', 1, 1.25, 1.5, 2], zi = 1, barMode = false, barSel = 0;
+
+function store(k, v){ try{ if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){} return null; }
+function se(){ return document.scrollingElement || document.documentElement; }
+
+/* ---- مكتبة PDF.js + العمل بدون إنترنت ---- */
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = LIB + 'pdf.worker.min.js';
+  fetch(LIB + 'pdf.worker.min.js').then(function(r){ return r.text(); }).then(function(t){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], {type: 'text/javascript'}));
+  }).catch(function(){});
+}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(){ return navigator.serviceWorker.ready; })
+    .then(function(){ fetch(LIB + 'pdf.min.js').catch(function(){}); fetch(LIB + 'pdf.worker.min.js').catch(function(){}); })
+    .catch(function(){});
+}
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+
+/* ---- الأسماء والتكبير ---- */
+function nm(n){ return names[n] || ('الملف ' + n); }
+function loadNames(){
+  try{ names = JSON.parse(store('names') || '{}') || {}; }catch(e){ names = {}; }
+  fetch('names.json', {cache: 'no-cache'}).then(function(r){ return r.json(); }).then(function(j){
+    names = j || {}; store('names', JSON.stringify(names)); if(mode === 'home') buildHome();
+  }).catch(function(){});
+}
+function zf(pg){
+  var m = ZL[zi], v = pg.getViewport({scale: 1});
+  if(m === 'fit') return Math.min(1, window.innerHeight / (window.innerWidth * v.height / v.width));
+  return m;
+}
+function zlabel(){
+  var m = ZL[zi], t = m === 'fit' ? 'صفحة كاملة' : Math.round(m * 100) + '%';
+  $('zl').textContent = t; return t;
+}
+function setZoom(i){
+  zi = Math.max(0, Math.min(ZL.length - 1, i)); store('zi', zi);
+  var s = se(); go(page, false, s.scrollHeight ? s.scrollTop / s.scrollHeight : 0);
+}
+
+/* ---- اختبار الأزرار ---- */
+function openKT(){
+  mode = 'keys'; $('home').style.display = 'none'; $('kv').style.display = 'flex';
+  try{ history.pushState({k: 1}, ''); }catch(e){}
+}
+function closeKT(){ mode = 'home'; $('kv').style.display = 'none'; $('home').style.display = 'flex'; }
+function ktShow(e){
+  klog.unshift((e.key || '?') + '   |   code: ' + (e.code || '-') + '   |   keyCode: ' + e.keyCode);
+  if(klog.length > 8) klog.pop();
+  $('kbig').textContent = e.keyCode; $('klog').textContent = klog.join('\n');
+}
+
+/* ---- القائمة الرئيسية ---- */
+function buildHome(){
+  var g = $('grid'); g.innerHTML = '';
+  for(var i = 1; i <= BOOKS; i++){
+    (function(n){
+      var d = document.createElement('button'); d.className = 'tile'; d.id = 't' + n;
+      var p = store('p' + n);
+      d.innerHTML = '<b>' + n + '</b><span></span><small>' + (p ? 'آخر صفحة: ' + p : '') + '</small>';
+      d.querySelector('span').textContent = nm(n);
+      d.onclick = function(){ sel = n - 1; openBook(n); };
+      g.appendChild(d);
+      if(window.caches) caches.match(pdfPath(n)).then(function(r){ if(r) d.classList.add('ok'); });
+    })(i);
+  }
+  markSel();
+}
+function markSel(){
+  for(var i = 0; i < BOOKS; i++){ var t = $('t' + (i + 1)); if(t) t.classList.toggle('sel', i === sel); }
+  $('dl').className = sel === BOOKS ? 'sel' : ''; $('kt').className = sel === BOOKS + 1 ? 'sel' : '';
+}
+$('dl').onclick = function(){ dlAll(); };
+$('kt').onclick = function(){ openKT(); };
+
+async function dlAll(){
+  if(dlBusy) return;
+  var b = $('dl');
+  if(!navigator.serviceWorker || !navigator.serviceWorker.controller){ b.textContent = 'أعد فتح الصفحة مرة واحدة ثم اضغط من جديد'; return; }
+  dlBusy = true;
+  try{
+    for(var i = 1; i <= BOOKS; i++){
+      if(await caches.match(pdfPath(i))) continue;
+      b.textContent = 'جاري تنزيل الملف ' + i + ' من ' + BOOKS + ' ... لا تغلق الصفحة';
+      var r = await fetch(pdfPath(i)), rd = r.body.getReader();
+      while(!(await rd.read()).done){}
+    }
+    b.textContent = '✓ كل الملفات جاهزة بدون إنترنت';
+  }catch(e){ b.textContent = 'انقطع التنزيل، اضغط للمتابعة'; }
+  dlBusy = false; buildHome();
+}
+
+/* ---- فتح كتاب ---- */
+function openBook(n){
+  book = n; mode = 'reader'; var my = ++loadId;
+  $('home').style.display = 'none'; $('reader').style.display = 'block';
+  document.body.className = 'rd'; $('cv').style.display = 'none'; window.scrollTo(0, 0);
+  try{ history.pushState({r: 1}, ''); }catch(e){}
+  showMsg('جاري التحميل ...'); showBar();
+  if(!window.pdfjsLib){ showMsg('تعذر تحميل مكتبة القراءة.<br>افتح الصفحة مرة وأنت متصل بالإنترنت'); return; }
+  lt = pdfjsLib.getDocument({url: pdfPath(n), disableRange: true});
+  lt.onProgress = function(p){
+    if(my !== loadId || pdf) return;
+    showMsg('جاري التحميل ' + (p.total ? Math.round(p.loaded / p.total * 100) + '%' : (p.loaded / 1048576).toFixed(1) + ' MB'));
+  };
+  lt.promise.then(function(doc){
+    if(my !== loadId || mode !== 'reader'){ doc.destroy(); return; }
+    pdf = doc; total = doc.numPages; buildOv(); zlabel();
+    go(Math.min(parseInt(store('p' + n), 10) || 1, total));
+  }).catch(function(){
+    if(my === loadId) showMsg('تعذر فتح الملف ' + pdfPath(n) + '<br>تأكد أنه مرفوع بجانب index.html');
+  });
+}
+function closeReader(){
+  mode = 'home'; ovOpen = false; loadId++; token++;
+  if(task){ try{ task.cancel(); }catch(e){} task = null; }
+  if(lt){ try{ lt.destroy(); }catch(e){} lt = null; }
+  pdf = null; buf = ''; cache = {}; cacheKeys = []; clearTimeout(renderT);
+  $('ov').style.display = 'none'; $('goto').style.display = 'none'; $('msg').style.display = 'none';
+  $('reader').style.display = 'none'; $('home').style.display = 'flex';
+  document.body.className = ''; window.scrollTo(0, 0); buildHome();
+}
+
+/* ---- عرض صفحة ---- */
+function ckey(p){ return p + '@' + zi + '@' + window.innerWidth; }
+function renderPage(p, slot){
+  var k = ckey(p);
+  if(cache[k]) return Promise.resolve(cache[k]);
+  return pdf.getPage(p).then(function(pg){
+    var z = zf(pg), v1 = pg.getViewport({scale: 1}), dpr = Math.max(window.devicePixelRatio || 1, 1);
+    var vp = pg.getViewport({scale: Math.min(window.innerWidth * dpr * Math.max(z, 1), 2600) / v1.width});
+    var oc = document.createElement('canvas'); oc.width = Math.floor(vp.width); oc.height = Math.floor(vp.height); oc._z = z;
+    var t = pg.render({canvasContext: oc.getContext('2d'), viewport: vp});
+    if(slot === 1) task = t; else ptask = t;
+    return t.promise.then(function(){
+      cache[k] = oc; cacheKeys.push(k);
+      while(cacheKeys.length > 3) delete cache[cacheKeys.shift()];
+      return oc;
+    });
+  });
+}
+function showCanvas(oc, bottom, ratio){
+  var c = $('cv');
+  c.width = oc.width; c.height = oc.height;
+  c.getContext('2d').drawImage(oc, 0, 0);
+  c.style.width = Math.round(window.innerWidth * oc._z) + 'px'; c.style.display = 'block';
+  $('msg').style.display = 'none';
+  window.scrollTo(RTL_BOOKS ? 1e7 : 0, ratio != null ? ratio * se().scrollHeight : (bottom ? se().scrollHeight : 0));
+}
+function go(p, bottom, ratio){
+  if(!pdf) return;
+  p = Math.max(1, Math.min(total, p));
+  var my = ++token; page = p; store('p' + book, p); showInfo();
+  [task, ptask].forEach(function(t){ if(t){ try{ t.cancel(); }catch(e){} } });
+  task = ptask = null; clearTimeout(renderT);
+  renderT = setTimeout(function(){
+    renderPage(p, 1).then(function(oc){
+      if(my !== token) return;
+      showCanvas(oc, bottom, ratio);
+      renderT = setTimeout(function(){ if(my === token && pdf && p < total) renderPage(p + 1, 2).catch(function(){}); }, 250);
+    }).catch(function(e){
+      if(my === token && !(e && e.name === 'RenderingCancelledException')) showMsg('تعذر عرض الصفحة ' + p);
+    });
+  }, cache[ckey(p)] ? 0 : 140);
+}
+function showMsg(t){ var m = $('msg'); m.innerHTML = t; m.style.display = 'block'; }
+function showInfo(){
+  var i = $('info'); i.textContent = nm(book) + ' — صفحة ' + page + ' / ' + total + (zi !== 1 ? ' — ' + zlabel() : '');
+  i.style.opacity = 1; clearTimeout(infoT); infoT = setTimeout(function(){ i.style.opacity = 0; }, 3000);
+}
+function showBar(){
+  if(mode !== 'reader') return;
+  $('bar').className = 'on'; clearTimeout(barT);
+  barT = setTimeout(function(){ barMode = false; markBar(); if(!document.activeElement || document.activeElement.parentNode !== $('bar')) $('bar').className = ''; }, 6000);
+}
+
+/* ---- قائمة الصفحات ---- */
+function buildOv(){
+  var o = $('ovgrid'); o.innerHTML = '';
+  for(var i = 1; i <= total; i++){ (function(n){
+    var d = document.createElement('div'); d.textContent = n;
+    d.onclick = function(){ closeOv(); go(n); }; o.appendChild(d);
+  })(i); }
+}
+function openOv(){ ovOpen = true; ovSel = page; $('ov').style.display = 'flex'; markOv(); }
+function closeOv(){ ovOpen = false; $('ov').style.display = 'none'; }
+function markOv(){
+  var ch = $('ovgrid').children;
+  for(var i = 0; i < ch.length; i++) ch[i].className = (i + 1 === ovSel) ? 'sel' : '';
+  if(ch[ovSel - 1]) ch[ovSel - 1].scrollIntoView({block: 'center'});
+}
+function commitGoto(){ clearTimeout(bufT); var n = parseInt(buf, 10); buf = ''; $('goto').style.display = 'none'; if(n) go(n); }
+
+/* ---- حركات القارئ (ريموت أو أزرار الشاشة) ---- */
+function scrollDown(){
+  var s = se();
+  if(s.scrollTop + window.innerHeight >= s.scrollHeight - 8){ if(page < total) go(page + 1); }
+  else window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+}
+function scrollUp(){
+  if(se().scrollTop <= 8){ if(page > 1) go(page - 1, true); }
+  else window.scrollBy(0, -Math.round(window.innerHeight * 0.8));
+}
+function bbtns(){ return $('bar').getElementsByTagName('button'); }
+function markBar(){ var b = bbtns(); for(var i = 0; i < b.length; i++) b[i].classList.toggle('k', barMode && i === barSel); }
+function barOn(){ var b = bbtns(); for(var i = 0; i < b.length; i++) if(b[i].getAttribute('data-a') === 'list') barSel = i; barMode = true; markBar(); showBar(); }
+function barOff(){ barMode = false; markBar(); }
+function onBack(){ if(barMode){ barOff(); return; } if(ovOpen){ closeOv(); return; } try{ history.back(); }catch(e){ closeReader(); } }
+window.addEventListener('popstate', function(){ if(mode === 'reader') closeReader(); else if(mode === 'keys') closeKT(); });
+
+$('bar').addEventListener('click', function(e){
+  var a = e.target.getAttribute && e.target.getAttribute('data-a'); if(!a) return;
+  showBar();
+  if(a === 'next') go(page + 1); else if(a === 'prev') go(page - 1);
+  else if(a === 'down') scrollDown(); else if(a === 'up') scrollUp();
+  else if(a === 'zin') setZoom(zi + 1); else if(a === 'zout') setZoom(zi - 1);
+  else if(a === 'list'){ barOff(); openOv(); } else if(a === 'home'){ barOff(); onBack(); }
+});
+['mousemove', 'touchstart', 'click', 'focusin'].forEach(function(ev){ document.addEventListener(ev, showBar); });
+
+document.addEventListener('keydown', function(e){
+  var k = e.key, c = e.keyCode;
+  var isBack = k === 'Escape' || k === 'Backspace' || k === 'GoBack' || k === 'BrowserBack' || c === 4 || c === 27 || c === 8;
+  var isOk = k === 'Enter' || c === 13 || c === 23;
+  if(mode === 'keys'){ e.preventDefault(); if(k === 'Escape'){ history.back(); return; } ktShow(e); return; }
+
+  if(mode === 'home'){
+    if(k === 'ArrowLeft'){ if(sel < BOOKS) sel = Math.min(BOOKS - 1, sel + 1); }
+    else if(k === 'ArrowRight'){ if(sel < BOOKS) sel = Math.max(0, sel - 1); }
+    else if(k === 'ArrowDown'){ if(sel < 5) sel += 5; else if(sel < BOOKS) sel = BOOKS; else if(sel === BOOKS) sel = BOOKS + 1; }
+    else if(k === 'ArrowUp'){ if(sel === BOOKS + 1) sel = BOOKS; else if(sel === BOOKS) sel = 7; else if(sel >= 5) sel -= 5; }
+    else if(isOk){ e.preventDefault(); if(sel === BOOKS) dlAll(); else if(sel === BOOKS + 1) openKT(); else openBook(sel + 1); return; }
+    else return;
+    e.preventDefault(); markSel(); return;
+  }
+
+  if(isBack){ e.preventDefault(); onBack(); return; }
+  showBar();
+  if(barMode && !ovOpen){
+    var bb = bbtns();
+    if(k === 'ArrowLeft'){ e.preventDefault(); barSel = Math.min(bb.length - 1, barSel + 1); markBar(); return; }
+    if(k === 'ArrowRight'){ e.preventDefault(); barSel = Math.max(0, barSel - 1); markBar(); return; }
+    if(isOk){ e.preventDefault(); bb[barSel].click(); return; }
+    barOff();
+  }
+  if(ovOpen){
+    if(k === 'ArrowLeft') ovSel = Math.min(total, ovSel + 1);
+    else if(k === 'ArrowRight') ovSel = Math.max(1, ovSel - 1);
+    else if(k === 'ArrowDown') ovSel = Math.min(total, ovSel + 10);
+    else if(k === 'ArrowUp') ovSel = Math.max(1, ovSel - 10);
+    else if(isOk){ e.preventDefault(); closeOv(); go(ovSel); return; }
+    else return;
+    e.preventDefault(); markOv(); return;
+  }
+  if(!pdf) return;
+
+  if(/^[0-9]$/.test(k)){
+    e.preventDefault(); buf = (buf + k).slice(-3);
+    var g = $('goto'); g.textContent = 'صفحة: ' + buf; g.style.display = 'block';
+    clearTimeout(bufT); bufT = setTimeout(commitGoto, 1600); return;
+  }
+  if(isOk){
+    if(buf){ e.preventDefault(); commitGoto(); }
+    else { e.preventDefault(); openOv(); }
+    return;
+  }
+  if(k === 'ArrowLeft'){ e.preventDefault(); if(se().scrollLeft <= 2) go(page + (RTL_BOOKS ? 1 : -1)); else window.scrollBy(-Math.round(window.innerWidth * 0.6), 0); }
+  else if(k === 'ArrowRight'){ e.preventDefault(); var s2 = se(); if(s2.scrollLeft >= s2.scrollWidth - s2.clientWidth - 2) go(page + (RTL_BOOKS ? -1 : 1)); else window.scrollBy(Math.round(window.innerWidth * 0.6), 0); }
+  else if(k === 'ArrowDown'){ e.preventDefault(); scrollDown(); }
+  else if(k === 'ArrowUp'){ e.preventDefault(); scrollUp(); }
+  else if(k === '+' || k === '=' || c === 184 || c === 404 || k === 'ColorF1Green'){ e.preventDefault(); setZoom(zi + 1); }
+  else if(k === '-' || k === '_' || c === 183 || c === 403 || k === 'ColorF0Red'){ e.preventDefault(); setZoom(zi - 1); }
+  else if(c === 185 || c === 405 || k === 'ColorF2Yellow'){ e.preventDefault(); setZoom(zi === 0 ? 1 : 0); }
+  else if(c === 186 || c === 406 || k === 'ColorF3Blue'){ e.preventDefault(); openOv(); }
+  else if(c === 165 || k === 'Info'){ e.preventDefault(); barOn(); }
+  else if(k === 'ContextMenu' || c === 82){ e.preventDefault(); setZoom((zi + 1) % ZL.length); }
+  else if(k === 'PageDown' || k === 'MediaFastForward' || c === 428 || c === 167 || k === 'ChannelDown' || c === 228){ e.preventDefault(); go(page + JUMP); }
+  else if(k === 'PageUp' || k === 'MediaRewind' || c === 427 || c === 166 || k === 'ChannelUp' || c === 227){ e.preventDefault(); go(page - JUMP); }
+});
+
+zi = parseInt(store('zi'), 10); if(!(zi >= 0 && zi < ZL.length)) zi = 1;
+loadNames(); buildHome();
+</script>
+</body>
+</html>
